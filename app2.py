@@ -7,13 +7,14 @@ import base64
 from io import BytesIO
 import os
 import gc
+from datetime import datetime
 
 from share_btn import community_icon_html, loading_icon_html, share_js
 
 # SDXL code: https://github.com/huggingface/diffusers/pull/3859
 
 model_dir = os.getenv("SDXL_MODEL_DIR")
-access_token = "your_token_change_here"
+access_token = "your_token"
 
 if model_dir:
     # Use local model
@@ -57,40 +58,52 @@ if enable_refiner:
 
 # NOTE: we do not have word list filtering in this gradio demo
 
+
+
 is_gpu_busy = False
-def infer(prompt, negative, scale, samples=1, steps=50, refiner_steps=15):
+def infer(prompt, negative, scale, samples=1, steps=50, refiner_steps=15, num_images=1):
     prompt, negative = [prompt] * samples, [negative] * samples
-    images = pipe(prompt=prompt, negative_prompt=negative, guidance_scale=scale, num_inference_steps=steps).images
-
-    gc.collect()
-    torch.cuda.empty_cache()
-
     images_b64_list = []
-
-    if enable_refiner:
-        if output_images_before_refiner:
-            for image in images:
-                buffered = BytesIO()
-                image.save(buffered, format="JPEG")
-                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                
-                image_b64 = (f"data:image/jpeg;base64,{img_str}")
-                images_b64_list.append(image_b64)
-
-        images = pipe_refiner(prompt=prompt, negative_prompt=negative, num_inference_steps=refiner_steps).images
-
+    for i in range(0, num_images):
+        images = pipe(prompt=prompt, negative_prompt=negative, guidance_scale=scale, num_inference_steps=steps).images
+        os.makedirs(r"stable-diffusion-xl-demo/outputs", exist_ok=True)
         gc.collect()
         torch.cuda.empty_cache()
 
-    for image in images:
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        
-        image_b64 = (f"data:image/jpeg;base64,{img_str}")
-        images_b64_list.append(image_b64)
-    
+        if enable_refiner:
+            if output_images_before_refiner:
+                for image in images:
+                    buffered = BytesIO()
+                    image.save(buffered, format="JPEG")
+                    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+                    image_b64 = (f"data:image/jpeg;base64,{img_str}")
+                    images_b64_list.append(image_b64)
+                    # Save the image as PNG with unique timestamp
+                    filename = f"stable-diffusion-xl-demo/outputs/generated_image_{timestamp}_{i}.png"
+                    image.save(filename, format="PNG")
+
+            images = pipe_refiner(prompt=prompt, negative_prompt=negative, num_inference_steps=refiner_steps).images
+
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        # Create the outputs folder if it doesn't exist
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+        for i, image in enumerate(images):
+            buffered = BytesIO()
+            image.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+            image_b64 = (f"data:image/jpeg;base64,{img_str}")
+            images_b64_list.append(image_b64)
+            # Save the image as PNG with unique timestamp
+            filename = f"stable-diffusion-xl-demo/outputs/generated_image_{timestamp}_{i}.png"
+            image.save(filename, format="PNG")
+
     return images_b64_list
+
     
     
 css = """
@@ -348,6 +361,14 @@ with block:
                     rounded=(False, True, True, False),
                     full_width=False,
                 )
+                num_images = gr.Slider(
+                    label="Number of Images",
+                    minimum=1,
+                    maximum=1000,
+                    value=1,
+                    step=1,
+					enabled=True
+                )
 
         gallery = gr.Gallery(
             label="Generated images", show_label=False, elem_id="gallery"
@@ -381,9 +402,9 @@ with block:
 
         ex = gr.Examples(examples=examples, fn=infer, inputs=[text, negative, guidance_scale], outputs=[gallery, community_icon, loading_icon, share_button], cache_examples=False)
         ex.dataset.headers = [""]
-        negative.submit(infer, inputs=[text, negative, guidance_scale, samples, steps, refiner_steps], outputs=[gallery], postprocess=False)
-        text.submit(infer, inputs=[text, negative, guidance_scale, samples, steps, refiner_steps], outputs=[gallery], postprocess=False)
-        btn.click(infer, inputs=[text, negative, guidance_scale, samples, steps, refiner_steps], outputs=[gallery], postprocess=False)
+        negative.submit(infer, inputs=[text, negative, guidance_scale, samples, steps, refiner_steps, num_images], outputs=[gallery], postprocess=False)
+        text.submit(infer, inputs=[text, negative, guidance_scale, samples, steps, refiner_steps, num_images], outputs=[gallery], postprocess=False)
+        btn.click(infer, inputs=[text, negative, guidance_scale, samples, steps, refiner_steps, num_images], outputs=[gallery], postprocess=False)
         
         #advanced_button.click(
         #    None,
@@ -404,7 +425,7 @@ with block:
         gr.HTML(
             """
                 <div class="footer">
-                    <p>Model by <a href="https://huggingface.co/stabilityai" style="text-decoration: underline;" target="_blank">StabilityAI</a> - Gradio Demo by 🤗 Hugging Face and <a style="text-decoration: underline;" href="https://tonylian.com/">Long (Tony) Lian</a>
+                    <p>Model by <a href="https://huggingface.co/stabilityai" style="text-decoration: underline;" target="_blank">StabilityAI</a> - Gradio Demo by 🤗 Hugging Face and <a style="text-decoration: underline;" href="https://tonylian.com/">Long (Tony) Lian</a> & <a style="text-decoration: underline;" href="https://www.linkedin.com/in/furkangozukara/">Furkan Gözükara</a>
                     </p>
                 </div>
            """
