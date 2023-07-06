@@ -13,7 +13,7 @@ from share_btn import community_icon_html, loading_icon_html, share_js
 # SDXL code: https://github.com/huggingface/diffusers/pull/3859
 
 model_dir = os.getenv("SDXL_MODEL_DIR")
-access_token = "your_token"
+access_token = "your_token_change_here"
 
 if model_dir:
     # Use local model
@@ -34,22 +34,24 @@ share = os.getenv("SHARE", "false").lower() == "true"
 print("Loading model", model_key_base)
 pipe = DiffusionPipeline.from_pretrained(model_key_base, torch_dtype=torch.float16, use_auth_token=access_token)
 
-pipe.enable_model_cpu_offload()
-# pipe.to("cuda")
+#pipe.enable_model_cpu_offload()
+pipe.to("cuda")
 
 # if using torch < 2.0
-# pipe.enable_xformers_memory_efficient_attention()
+pipe.enable_xformers_memory_efficient_attention()
+
+
 
 # pipe.unet = torch.compile(pipe.unet, mode="reduce-overhead", fullgraph=True)
 
 if enable_refiner:
     print("Loading model", model_key_refiner)
     pipe_refiner = DiffusionPipeline.from_pretrained(model_key_base, torch_dtype=torch.float16, use_auth_token=access_token)
-    pipe_refiner.enable_model_cpu_offload()
-    # pipe_refiner.to("cuda")
+    #pipe_refiner.enable_model_cpu_offload()
+    pipe_refiner.to("cuda")
 
     # if using torch < 2.0
-    # pipe_refiner.enable_xformers_memory_efficient_attention()
+    pipe_refiner.enable_xformers_memory_efficient_attention()
 
     # pipe_refiner.unet = torch.compile(pipe_refiner.unet, mode="reduce-overhead", fullgraph=True)
 
@@ -75,7 +77,7 @@ def infer(prompt, negative, scale, samples=4, steps=50, refiner_steps=15):
                 image_b64 = (f"data:image/jpeg;base64,{img_str}")
                 images_b64_list.append(image_b64)
 
-        images = pipe_refiner(prompt=prompt, negative_prompt=negative, image=images, num_inference_steps=refiner_steps).images
+        images = pipe_refiner(prompt=prompt, negative_prompt=negative, num_inference_steps=refiner_steps).images
 
         gc.collect()
         torch.cuda.empty_cache()
@@ -215,7 +217,7 @@ css = """
         .image_duplication{position: absolute; width: 100px; left: 50px}
 """
 
-block = gr.Blocks(css=css)
+block = gr.Blocks(css=css, timeout=300)
 
 examples = [
     [
@@ -296,8 +298,13 @@ with block:
                 </h1>
               </div>
               <p style="margin-bottom: 10px; font-size: 94%; line-height: 23px;">
+			    Brought you by SECourses : <a style="text-decoration: underline;" href="https://www.youtube.com/SECourses">https://www.youtube.com/SECourses</a>
+				<br/>
+				Please support me on Patreon : <a style="text-decoration: underline;" href="https://www.patreon.com/SECourses">https://www.patreon.com/SECourses</a>
+				<br/>
+				Patreon exclusive posts index : <a style="text-decoration: underline;" href="https://github.com/FurkanGozukara/Stable-Diffusion/blob/main/Patreon-Posts-Index.md">https://github.com/FurkanGozukara/Stable-Diffusion/blob/main/Patreon-Posts-Index.md</a>
+				<br/>
                 Stable Diffusion XL 0.9 is the latest text-to-image model from StabilityAI. 
-                <a style="text-decoration: underline;" href="https://huggingface.co/spaces/stabilityai/stable-diffusion">Access SD v2.1 Space</a> <a style="text-decoration: underline;" href="https://huggingface.co/spaces/stabilityai/stable-diffusion-1">SD v1 Space</a>
                 <br/>
                 For faster generation and API access you can try
                 <a
