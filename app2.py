@@ -58,7 +58,7 @@ if enable_refiner:
 # NOTE: we do not have word list filtering in this gradio demo
 
 is_gpu_busy = False
-def infer(prompt, negative, scale, samples=4, steps=50, refiner_steps=15):
+def infer(prompt, negative, scale, samples=1, steps=50, refiner_steps=15):
     prompt, negative = [prompt] * samples, [negative] * samples
     images = pipe(prompt=prompt, negative_prompt=negative, guidance_scale=scale, num_inference_steps=steps).images
 
@@ -362,7 +362,7 @@ with block:
 
         with gr.Accordion("Advanced settings", open=False):
         #    gr.Markdown("Advanced settings are temporarily unavailable")
-            samples = gr.Slider(label="Images", minimum=1, maximum=4, value=4, step=1)
+            samples = gr.Slider(label="Images", minimum=1, maximum=8, value=1, step=1)
             steps = gr.Slider(label="Steps", minimum=1, maximum=250, value=50, step=1)
             if enable_refiner:
                 refiner_steps = gr.Slider(label="Refiner Steps", minimum=1, maximum=50, value=15, step=1)
